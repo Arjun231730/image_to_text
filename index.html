@@ -57,7 +57,7 @@
       resultArea.value = "";
 
       const formData = new FormData();
-      formData.append("apikey", "bbef5d657f88957");  // 🔑 Replace with your key if needed
+      formData.append("apikey", "bbef5d657f88957");  // Your API key
       formData.append("language", "eng");
       formData.append("isOverlayRequired", "false");
       formData.append("OCREngine", "2");
@@ -104,7 +104,7 @@
         "\\bSte\\.?\\b": "Suite",
         "\\bPkwy\\.?\\b": "Parkway",
         "\\bLn\\.?\\b": "Lane",
-        "\\bDr[,\\.]?": "Drive^^",
+        "\\bDr[,\\.]?": "Drive ",
         "\\bPl\\.?\\b": "Place",
         "\\bBlvd\\.?\\b": "Boulevard",
         "\\bApt\\.?\\b": "Apartment",
@@ -116,7 +116,7 @@
         "\\bSN\\.?\\b": "South North",
         "\\bLLC\\b": "Limited Liability Company",
         "\\bE\\.\\s?W\\.\\s?S\\.\\s?N\\b": "East West South North",
-        "Co\\.,": "Company,^"
+        "Co\\.,": "Company, "
       };
 
       for (const [pattern, replacement] of Object.entries(replacements)) {
@@ -126,13 +126,13 @@
       // Hyphen rule
       text = text.replace(/\s*-\s*/g, "-");
 
-      // Comma rules
+      // Comma spacing rules
       const addressKeywords = ["Address", "Company"];
       const lines = text.split("\n").map(line => {
         if (addressKeywords.some(keyword => line.includes(keyword))) {
-          return line.replace(/,\s*/g, ",^^");
+          return line.replace(/,\s*/g, ", ");
         } else {
-          return line.replace(/,\s*/g, ",^");
+          return line.replace(/,\s*/g, ", ");
         }
       });
 
@@ -146,10 +146,10 @@
         const suffix = (day % 10 == 1 && day != 11) ? "st" :
                        (day % 10 == 2 && day != 12) ? "nd" :
                        (day % 10 == 3 && day != 13) ? "rd" : "th";
-        return `${day}${suffix} ^${months[month]},^^${y}.`;
+        return `${day}${suffix} ${months[month]}, ${y}.`;
       });
 
-      // Add <U>, <I><U>, <R><B> rules
+      // Apply underline/bold/email formatting
       text = text.replace(/^Domain Name\s*:\s*(.*)$/im, "Domain Name: <U>$1</U>");
       text = text.replace(/^.*Email\s*:\s*(.*)$/gim, (match, p1) => {
         return match.replace(p1, `<I><U>${p1}</U></I>`);
