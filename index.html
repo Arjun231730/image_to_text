@@ -4,20 +4,60 @@
   <meta charset="UTF-8">
   <title>🧠 SpaceOCR Text Extractor</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
-    textarea { width: 100%; height: 400px; margin-top: 20px; font-size: 16px; }
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      max-width: 800px;
+      margin: auto;
+    }
+    input, button {
+      margin-top: 10px;
+      font-size: 16px;
+    }
+    textarea {
+      width: 100%;
+      height: 300px;
+      margin-top: 20px;
+      font-size: 15px;
+      white-space: pre-wrap;
+    }
+    #preview {
+      margin-top: 20px;
+      max-width: 100%;
+      border: 1px solid #ccc;
+      display: none;
+    }
   </style>
 </head>
 <body>
   <h2>🧠 Upload Image to Extract Text (via SpaceOCR)</h2>
 
-  <input type="file" id="imageInput" accept="image/*">
+  <input type="file" id="imageInput" accept="image/*" onchange="previewImage()">
+  <br>
   <button onclick="extractText()">Extract Text</button>
 
   <p id="status" style="color:red;"></p>
+
+  <img id="preview" src="#" alt="Uploaded Image Preview">
+
+  <h3>📝 Extracted Text:</h3>
   <textarea id="result" placeholder="Extracted text will appear here..."></textarea>
 
   <script>
+    function previewImage() {
+      const input = document.getElementById("imageInput");
+      const preview = document.getElementById("preview");
+
+      if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          preview.src = e.target.result;
+          preview.style.display = "block";
+        };
+        reader.readAsDataURL(input.files[0]);
+      }
+    }
+
     async function extractText() {
       const fileInput = document.getElementById("imageInput");
       const resultArea = document.getElementById("result");
@@ -32,10 +72,10 @@
       resultArea.value = "";
 
       const formData = new FormData();
-      formData.append("apikey", "bbef5d657f88957"); // Replace with your own SpaceOCR key
+      formData.append("apikey", "bbef5d657f88957"); // Your SpaceOCR API key
       formData.append("language", "eng");
-      formData.append("isOverlayRequired", "false");
       formData.append("OCREngine", "2");
+      formData.append("isOverlayRequired", "false");
       formData.append("file", fileInput.files[0]);
 
       try {
@@ -47,7 +87,7 @@
         const data = await response.json();
 
         if (data.IsErroredOnProcessing) {
-          status.textContent = "❌ OCR failed. Please check the image or try again.";
+          status.textContent = "❌ OCR failed. Please check the image.";
         } else {
           const extracted = data.ParsedResults[0].ParsedText;
           resultArea.value = extracted;
