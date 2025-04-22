@@ -2,57 +2,64 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>🧠 SpaceOCR Image Text Extractor</title>
+  <title>🧠 SpaceOCR Image Extractor</title>
   <style>
     body {
       font-family: Arial, sans-serif;
       padding: 20px;
       margin: auto;
-      max-width: 1000px;
+      max-width: 1100px;
     }
     h2 {
       margin-bottom: 10px;
     }
+    #upload-section {
+      margin-bottom: 20px;
+    }
     #container {
       display: flex;
       gap: 20px;
-      margin-top: 20px;
     }
     #left, #right {
       flex: 1;
     }
     #result {
       width: 100%;
-      height: 500px;
-      font-size: 15px;
+      height: 550px;
+      font-size: 14px;
       white-space: pre-wrap;
     }
     #preview {
       width: 100%;
-      max-height: 500px;
+      max-height: 550px;
       object-fit: contain;
       border: 1px solid #ccc;
+      display: none;
     }
     #status {
       color: red;
+      font-weight: bold;
+      margin-top: 10px;
     }
   </style>
 </head>
 <body>
-  <h2>🧠 Upload Image to Extract Text (SpaceOCR)</h2>
+  <h2>🧠 OCR Image to Text (SpaceOCR)</h2>
 
-  <input type="file" id="imageInput" accept="image/*" onchange="previewImage()" />
-  <button onclick="extractText()">Extract</button>
-  <p id="status"></p>
+  <div id="upload-section">
+    <input type="file" id="imageInput" accept="image/*" onchange="previewImage()" />
+    <button onclick="extractText()">Extract</button>
+    <div id="status"></div>
+  </div>
 
   <div id="container">
     <div id="left">
       <h3>📝 Extracted Text</h3>
-      <textarea id="result" placeholder="Extracted text will appear here..."></textarea>
+      <textarea id="result" placeholder="OCR output will appear here..."></textarea>
     </div>
     <div id="right">
       <h3>📷 Uploaded Image</h3>
-      <img id="preview" src="#" alt="Image Preview" style="display:none;" />
+      <img id="preview" src="#" alt="Preview" />
     </div>
   </div>
 
@@ -85,31 +92,32 @@
       resultArea.value = "";
 
       const formData = new FormData();
-      formData.append("apikey", "bbef5d657f88957"); // Your SpaceOCR API key
+      formData.append("apikey", "bbef5d657f88957"); // ✅ Your OCR.Space API key
       formData.append("language", "eng");
       formData.append("OCREngine", "2");
       formData.append("scale", "true");
       formData.append("detectOrientation", "true");
+      formData.append("isTable", "true");
       formData.append("file", fileInput.files[0]);
 
       try {
         const response = await fetch("https://api.ocr.space/parse/image", {
           method: "POST",
-          body: formData
+          body: formData,
         });
 
         const data = await response.json();
 
         if (data.IsErroredOnProcessing) {
-          status.textContent = "❌ OCR failed. Please check the image.";
+          status.textContent = "❌ OCR failed. Please try another image.";
         } else {
           const extracted = data.ParsedResults[0].ParsedText;
           resultArea.value = extracted;
           status.textContent = "✅ Done!";
         }
-      } catch (err) {
-        console.error(err);
-        status.textContent = "⚠️ Network or API error.";
+      } catch (error) {
+        console.error(error);
+        status.textContent = "⚠️ Network or API error occurred.";
       }
     }
   </script>
