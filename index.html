@@ -30,18 +30,16 @@
 <body>
   <div class="left">
     <h2>🧠 Upload Image to Extract Text (via SpaceOCR)</h2>
-
     <input type="file" id="imageInput" accept="image/*" onchange="previewImage(event)">
     <button onclick="extractText()">Extract Text</button>
     <button onclick="formatText()">Format Text</button>
-
     <p id="status" style="color:red;"></p>
     <textarea id="result" placeholder="Extracted text will appear here..."></textarea>
   </div>
 
   <div class="right">
     <h3>📷 Uploaded Image</h3>
-    <img id="preview" src="#" alt="Image will appear here after upload." style="display: none;">
+    <img id="preview" src="#" alt="Image preview" style="display: none;">
   </div>
 
   <script>
@@ -59,7 +57,7 @@
       resultArea.value = "";
 
       const formData = new FormData();
-      formData.append("apikey", "bbef5d657f88957");
+      formData.append("apikey", "bbef5d657f88957");  // 🔑 Replace with your key if needed
       formData.append("language", "eng");
       formData.append("isOverlayRequired", "false");
       formData.append("OCREngine", "2");
@@ -74,15 +72,14 @@
         const data = await response.json();
 
         if (data.IsErroredOnProcessing) {
-          status.textContent = "❌ OCR failed. Please check the image or try again.";
+          status.textContent = "❌ OCR failed. Please check the image.";
         } else {
           const extracted = data.ParsedResults[0].ParsedText;
           resultArea.value = extracted;
-          status.textContent = "✅ Text extracted successfully!";
+          status.textContent = "✅ Text extracted!";
         }
       } catch (err) {
-        console.error(err);
-        status.textContent = "⚠️ Network or server error.";
+        status.textContent = "⚠️ Error occurred during processing.";
       }
     }
 
@@ -126,23 +123,20 @@
         text = text.replace(new RegExp(pattern, "g"), replacement);
       }
 
-      // Hyphen rule: no space before/after
+      // Hyphen rule
       text = text.replace(/\s*-\s*/g, "-");
 
-      // Full stop rule: after dot add double space (not end)
-      text = text.replace(/\.(?=\S)/g, ".^^");
-
-      // Comma rule: double space only in address lines
-      const addressKeywords = ["Registrant Address", "Administrative Address", "Technical Address"];
-      const lines = text.split('\n').map(line => {
-        if (addressKeywords.some(k => line.includes(k))) {
+      // Comma rules
+      const addressKeywords = ["Address", "Company"];
+      const lines = text.split("\n").map(line => {
+        if (addressKeywords.some(keyword => line.includes(keyword))) {
           return line.replace(/,\s*/g, ",^^");
         } else {
           return line.replace(/,\s*/g, ",^");
         }
       });
 
-      // Date format: 7-12-2018 → 7th ^December,^^2018.
+      // Date formatting
       const months = [
         "", "January", "February", "March", "April", "May", "June",
         "July", "August", "September", "October", "November", "December"
@@ -155,9 +149,15 @@
         return `${day}${suffix} ^${months[month]},^^${y}.`;
       });
 
+      // Add <U>, <I><U>, <R><B> rules
+      text = text.replace(/^Domain Name\s*:\s*(.*)$/im, "Domain Name: <U>$1</U>");
+      text = text.replace(/^.*Email\s*:\s*(.*)$/gim, (match, p1) => {
+        return match.replace(p1, `<I><U>${p1}</U></I>`);
+      });
+      text = text.replace(/^Domain Status\s*:\s*(.*)$/im, "Domain Status: <R><B>$1</B></R>");
+
       textarea.value = text;
     }
   </script>
 </body>
 </html>
-
