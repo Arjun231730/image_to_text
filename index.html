@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -34,6 +33,7 @@
 
     <input type="file" id="imageInput" accept="image/*" onchange="previewImage(event)">
     <button onclick="extractText()">Extract Text</button>
+    <button onclick="formatText()">Format Text</button>
 
     <p id="status" style="color:red;"></p>
     <textarea id="result" placeholder="Extracted text will appear here..."></textarea>
@@ -59,7 +59,7 @@
       resultArea.value = "";
 
       const formData = new FormData();
-      formData.append("apikey", "bbef5d657f88957"); // Replace with your own SpaceOCR key
+      formData.append("apikey", "bbef5d657f88957");
       formData.append("language", "eng");
       formData.append("isOverlayRequired", "false");
       formData.append("OCREngine", "2");
@@ -91,6 +91,73 @@
       preview.src = URL.createObjectURL(event.target.files[0]);
       preview.style.display = "block";
     }
+
+    function formatText() {
+      const textarea = document.getElementById("result");
+      let text = textarea.value;
+
+      if (!text.trim()) return;
+
+      // Short form replacements
+      const replacements = {
+        "\\bInc\\.?\\b": "Incorporation",
+        "\\bLtd\\.?\\b": "Limited",
+        "\\bAve\\.?\\b": "Avenue",
+        "\\bCt\\.?\\b": "Court",
+        "\\bSte\\.?\\b": "Suite",
+        "\\bPkwy\\.?\\b": "Parkway",
+        "\\bLn\\.?\\b": "Lane",
+        "\\bDr[,\\.]?": "Drive^^",
+        "\\bPl\\.?\\b": "Place",
+        "\\bBlvd\\.?\\b": "Boulevard",
+        "\\bApt\\.?\\b": "Apartment",
+        "\\bRd\\.?\\b": "Road",
+        "\\bPvt\\.?\\b": "Private",
+        "\\bCorp\\.?\\b": "Corporation",
+        "\\bEW\\.?\\b": "East West",
+        "\\bSW\\.?\\b": "South West",
+        "\\bSN\\.?\\b": "South North",
+        "\\bLLC\\b": "Limited Liability Company",
+        "\\bE\\.\\s?W\\.\\s?S\\.\\s?N\\b": "East West South North",
+        "Co\\.,": "Company,^"
+      };
+
+      for (const [pattern, replacement] of Object.entries(replacements)) {
+        text = text.replace(new RegExp(pattern, "g"), replacement);
+      }
+
+      // Hyphen rule: no space before/after
+      text = text.replace(/\s*-\s*/g, "-");
+
+      // Full stop rule: after dot add double space (not end)
+      text = text.replace(/\.(?=\S)/g, ".^^");
+
+      // Comma rule: double space only in address lines
+      const addressKeywords = ["Registrant Address", "Administrative Address", "Technical Address"];
+      const lines = text.split('\n').map(line => {
+        if (addressKeywords.some(k => line.includes(k))) {
+          return line.replace(/,\s*/g, ",^^");
+        } else {
+          return line.replace(/,\s*/g, ",^");
+        }
+      });
+
+      // Date format: 7-12-2018 → 7th ^December,^^2018.
+      const months = [
+        "", "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+      ];
+      text = lines.join("\n").replace(/\b(\d{1,2})-(\d{1,2})-(\d{4})\b/g, (_, d, m, y) => {
+        const day = parseInt(d), month = parseInt(m);
+        const suffix = (day % 10 == 1 && day != 11) ? "st" :
+                       (day % 10 == 2 && day != 12) ? "nd" :
+                       (day % 10 == 3 && day != 13) ? "rd" : "th";
+        return `${day}${suffix} ^${months[month]},^^${y}.`;
+      });
+
+      textarea.value = text;
+    }
   </script>
 </body>
 </html>
+
