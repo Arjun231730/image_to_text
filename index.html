@@ -8,10 +8,10 @@
       font-family: Arial, sans-serif;
       padding: 20px;
       display: flex;
-      gap: 20px;
+      justify-content: space-between;
     }
-    .left, .right {
-      flex: 1;
+    #text-container {
+      width: 48%;
     }
     textarea {
       width: 100%;
@@ -19,27 +19,35 @@
       margin-top: 20px;
       font-size: 16px;
     }
+    #image-container {
+      width: 48%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 400px;
+      border: 1px solid #ccc;
+    }
     img {
       max-width: 100%;
-      max-height: 400px;
-      border: 1px solid #ccc;
-      margin-top: 20px;
+      height: auto;
     }
   </style>
 </head>
 <body>
-  <div class="left">
-    <h2>🧠 Upload Image to Extract Text (via SpaceOCR)</h2>
-    <input type="file" id="imageInput" accept="image/*" onchange="previewImage(event)">
-    <button onclick="extractText()">Extract Text</button>
-    <button onclick="formatText()">Format Text</button>
-    <p id="status" style="color:red;"></p>
-    <textarea id="result" placeholder="Extracted text will appear here..."></textarea>
-  </div>
+  <h2>🧠 Upload Image to Extract Text (via SpaceOCR)</h2>
 
-  <div class="right">
-    <h3>📷 Uploaded Image</h3>
-    <img id="preview" src="#" alt="Image preview" style="display: none;">
+  <input type="file" id="imageInput" accept="image/*">
+  <button onclick="extractText()">Extract Text</button>
+
+  <p id="status" style="color:red;"></p>
+
+  <div style="display: flex; justify-content: space-between;">
+    <div id="text-container">
+      <textarea id="result" placeholder="Extracted text will appear here..."></textarea>
+    </div>
+    <div id="image-container">
+      <img id="uploaded-image" src="" alt="Uploaded Image" style="display:none;">
+    </div>
   </div>
 
   <script>
@@ -47,6 +55,7 @@
       const fileInput = document.getElementById("imageInput");
       const resultArea = document.getElementById("result");
       const status = document.getElementById("status");
+      const uploadedImage = document.getElementById("uploaded-image");
 
       if (!fileInput.files.length) {
         status.textContent = "❗ Please select an image first.";
@@ -57,7 +66,7 @@
       resultArea.value = "";
 
       const formData = new FormData();
-      formData.append("apikey", "bbef5d657f88957");  // 🔑 Replace with your key if needed
+      formData.append("apikey", "bbef5d657f88957"); // Replace with your own SpaceOCR key
       formData.append("language", "eng");
       formData.append("isOverlayRequired", "false");
       formData.append("OCREngine", "2");
@@ -72,91 +81,39 @@
         const data = await response.json();
 
         if (data.IsErroredOnProcessing) {
-          status.textContent = "❌ OCR failed. Please check the image.";
+          status.textContent = "❌ OCR failed. Please check the image or try again.";
         } else {
           const extracted = data.ParsedResults[0].ParsedText;
-          resultArea.value = extracted;
-          status.textContent = "✅ Text extracted!";
+
+          // Apply formatting rules to the extracted text
+          let formattedText = applyFormattingRules(extracted);
+
+          resultArea.value = formattedText;
+          status.textContent = "✅ Text extracted successfully!";
+
+          // Display the image on the right
+          uploadedImage.src = URL.createObjectURL(fileInput.files[0]);
+          uploadedImage.style.display = "block";
         }
       } catch (err) {
-        status.textContent = "⚠️ Error occurred during processing.";
+        console.error(err);
+        status.textContent = "⚠️ Network or server error.";
       }
     }
 
-    function previewImage(event) {
-      const preview = document.getElementById("preview");
-      preview.src = URL.createObjectURL(event.target.files[0]);
-      preview.style.display = "block";
-    }
-
-    function formatText() {
-      const textarea = document.getElementById("result");
-      let text = textarea.value;
-
-      if (!text.trim()) return;
-
-      // Short form replacements
-      const replacements = {
-        "\\bInc\\.?\\b": "Incorporation",
-        "\\bLtd\\.?\\b": "Limited",
-        "\\bAve\\.?\\b": "Avenue",
-        "\\bCt\\.?\\b": "Court",
-        "\\bSte\\.?\\b": "Suite",
-        "\\bPkwy\\.?\\b": "Parkway",
-        "\\bLn\\.?\\b": "Lane",
-        "\\bDr[,\\.]?": "Drive^^",
-        "\\bPl\\.?\\b": "Place",
-        "\\bBlvd\\.?\\b": "Boulevard",
-        "\\bApt\\.?\\b": "Apartment",
-        "\\bRd\\.?\\b": "Road",
-        "\\bPvt\\.?\\b": "Private",
-        "\\bCorp\\.?\\b": "Corporation",
-        "\\bEW\\.?\\b": "East West",
-        "\\bSW\\.?\\b": "South West",
-        "\\bSN\\.?\\b": "South North",
-        "\\bLLC\\b": "Limited Liability Company",
-        "\\bE\\.\\s?W\\.\\s?S\\.\\s?N\\b": "East West South North",
-        "Co\\.,": "Company,^"
-      };
-
-      for (const [pattern, replacement] of Object.entries(replacements)) {
-        text = text.replace(new RegExp(pattern, "g"), replacement);
-      }
-
-      // Hyphen rule
-      text = text.replace(/\s*-\s*/g, "-");
-
-      // Comma rules
-      const addressKeywords = ["Address", "Company"];
-      const lines = text.split("\n").map(line => {
-        if (addressKeywords.some(keyword => line.includes(keyword))) {
-          return line.replace(/,\s*/g, ",^^");
-        } else {
-          return line.replace(/,\s*/g, ",^");
-        }
-      });
-
-      // Date formatting
-      const months = [
-        "", "January", "February", "March", "April", "May", "June",
-        "July", "August", "September", "October", "November", "December"
-      ];
-      text = lines.join("\n").replace(/\b(\d{1,2})-(\d{1,2})-(\d{4})\b/g, (_, d, m, y) => {
-        const day = parseInt(d), month = parseInt(m);
-        const suffix = (day % 10 == 1 && day != 11) ? "st" :
-                       (day % 10 == 2 && day != 12) ? "nd" :
-                       (day % 10 == 3 && day != 13) ? "rd" : "th";
-        return ${day}${suffix} ^${months[month]},^^${y}.;
-      });
-
-      // Add <U>, <I><U>, <R><B> rules
+    function applyFormattingRules(text) {
+      // Replace with formatting rules like <U>, <I><U>, <R><B> etc.
       text = text.replace(/^Domain Name\s*:\s*(.*)$/im, "Domain Name: <U>$1</U>");
-      text = text.replace(/^.*Email\s*:\s*(.*)$/gim, (match, p1) => {
+      text = text.replace(/^.Email\s:\s*(.*)$/gim, (match, p1) => {
         return match.replace(p1, <I><U>${p1}</U></I>);
       });
       text = text.replace(/^Domain Status\s*:\s*(.*)$/im, "Domain Status: <R><B>$1</B></R>");
+      // Add further rules here for other fields like Registrant Name, Registrar URL etc.
 
-      textarea.value = text;
+      // Replace spaces between commas
+      text = text.replace(/\s*,\s*/g, ", ");
+
+      return text;
     }
   </script>
 </body>
