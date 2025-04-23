@@ -43,6 +43,7 @@
 
   <input type="file" id="imageInput" accept="image/*" onchange="previewImage()" />
   <button onclick="extractText()">Extract</button>
+  <button onclick="formatText()">Format Text</button>
   <p id="status"></p>
 
   <div id="container">
@@ -112,6 +113,62 @@
         status.textContent = "⚠️ Network or API error.";
       }
     }
+
+    function formatText() {
+      const textarea = document.getElementById("result");
+      let text = textarea.value;
+
+      // Replace short forms with full forms
+      const replacements = {
+        "Inc\\.?": "Incorporation",
+        "Ltd\\.?": "Limited",
+        "Ave\\.?": "Avenue",
+        "Ct\\.?": "Court",
+        "Ste\\.?": "Suite",
+        "Pkwy\\.?": "Parkway",
+        "Ln\\.?": "Lane",
+        "Dr\\b": "Drive",
+        "Pl\\.?": "Place",
+        "Blvd\\.?": "Boulevard",
+        "Apt\\.?": "Apartment",
+        "Rd\\.?": "Road",
+        "Pvt\\.?": "Private",
+        "Corp\\.?": "Corporation",
+        "EW\\.?": "East West",
+        "SN\\.?": "South North",
+        "SW\\.?": "South West",
+        "LLC": "Limited Liability Company",
+        "E\\.W\\.S\\.N": "East West South North",
+        "Co\\.,": "Company,"
+      };
+
+      for (const pattern in replacements) {
+        text = text.replace(new RegExp(pattern, "gi"), replacements[pattern]);
+      }
+
+      // Add spacing after commas and full stops
+      text = text.replace(/([^\s]),(?=\S)/g, "$1, ");
+      text = text.replace(/([^\s])\.(?=\S)/g, "$1.  "); // double space after full stop
+
+      // Expiry date formatting (e.g. 7-12-2018)
+      text = text.replace(/(\d{1,2})-(\d{1,2})-(\d{4})/g, function(_, d, m, y) {
+        const suffix = (n) => n.endsWith("1") && !n.endsWith("11") ? "st" : n.endsWith("2") && !n.endsWith("12") ? "nd" : n.endsWith("3") && !n.endsWith("13") ? "rd" : "th";
+        const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+        return `${parseInt(d)}${suffix(d)} ${months[parseInt(m)-1]},  ${y}.`;
+      });
+
+      // Mandatory field formatting
+      text = text.replace(/^Domain Name\s*:\s*(.*)$/im, "Domain Name: <U>$1</U>");
+      text = text.replace(/^Administrative Email\s*:\s*(.*)$/im, "Administrative Email: <I><U>$1</U></I>");
+      text = text.replace(/^Registrant Email\s*:\s*(.*)$/im, "Registrant Email: <I><U>$1</U></I>");
+      text = text.replace(/^Billing Email\s*:\s*(.*)$/im, "Billing Email: <I><U>$1</U></I>");
+      text = text.replace(/^Server Name\s*:\s*(.*)$/im, "Server Name: <U>$1</U>");
+      text = text.replace(/^Technical Email\s*:\s*(.*)$/im, "Technical Email: <I><U>$1</U></I>");
+      text = text.replace(/^Domain Status\s*:\s*(.*)$/im, "Domain Status: <R><B>$1</B></R>");
+
+      textarea.value = text;
+    }
   </script>
 </body>
 </html>
+
