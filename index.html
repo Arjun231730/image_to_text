@@ -1,100 +1,172 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>🧠 SpaceOCR Extractor</title>
+  <meta charset="UTF-8" />
+  <title>🧠 SpaceOCR Image Text Extractor</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      display: flex;
-      justify-content: space-between;
       padding: 20px;
+      margin: auto;
+      max-width: 1000px;
+    }
+    h2 {
+      margin-bottom: 10px;
+    }
+    #container {
+      display: flex;
       gap: 20px;
+      margin-top: 20px;
     }
-    .left, .right {
-      width: 48%;
+    #left, #right {
+      flex: 1;
     }
-    #uploadedImage {
-      max-width: 100%;
-      max-height: 600px;
-      border: 1px solid #ccc;
-      margin-top: 10px;
-    }
-    textarea {
+    #result {
       width: 100%;
       height: 500px;
-      font-size: 16px;
-      margin-top: 10px;
+      font-size: 15px;
+      white-space: pre-wrap;
+    }
+    #preview {
+      width: 100%;
+      max-height: 500px;
+      object-fit: contain;
+      border: 1px solid #ccc;
     }
     #status {
       color: red;
-      margin-top: 10px;
     }
   </style>
 </head>
 <body>
+  <h2>🧠 Upload Image to Extract Text (SpaceOCR)</h2>
 
-  <div class="left">
-    <h2>🧠 Upload Image to Extract Text</h2>
-    <input type="file" id="imageInput" accept="image/*"><br><br>
-    <button onclick="extractText()">Extract Text</button>
-    <div id="status"></div>
-    <textarea id="result" placeholder="Extracted text will appear here..."></textarea>
-  </div>
+  <input type="file" id="imageInput" accept="image/*" onchange="previewImage()" />
+  <button onclick="extractText()">Extract</button>
+  <button onclick="formatText()">Format Text</button>
+  <p id="status"></p>
 
-  <div class="right">
-    <h3>🖼️ Uploaded Image</h3>
-    <img id="uploadedImage" src="#" alt="Preview will appear here">
+  <div id="container">
+    <div id="left">
+      <h3>📝 Extracted Text</h3>
+      <textarea id="result" placeholder="Extracted text will appear here..."></textarea>
+    </div>
+    <div id="right">
+      <h3>📷 Uploaded Image</h3>
+      <img id="preview" src="#" alt="Image Preview" style="display:none;" />
+    </div>
   </div>
 
   <script>
-    function extractText() {
+    function previewImage() {
+      const input = document.getElementById("imageInput");
+      const preview = document.getElementById("preview");
+
+      if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          preview.src = e.target.result;
+          preview.style.display = "block";
+        };
+        reader.readAsDataURL(input.files[0]);
+      }
+    }
+
+    async function extractText() {
       const fileInput = document.getElementById("imageInput");
       const resultArea = document.getElementById("result");
       const status = document.getElementById("status");
-      const imgPreview = document.getElementById("uploadedImage");
 
       if (!fileInput.files.length) {
-        status.textContent = "❗ Please select an image.";
+        status.textContent = "❗ Please select an image first.";
         return;
       }
 
-      // Show preview
-      const reader = new FileReader();
-      reader.onload = function (e) {
-        imgPreview.src = e.target.result;
-      };
-      reader.readAsDataURL(fileInput.files[0]);
-
-      // Reset UI
       status.textContent = "⏳ Processing...";
       resultArea.value = "";
 
       const formData = new FormData();
-      formData.append("apikey", "bbef5d657f88957"); // Your OCR.Space API Key
+      formData.append("apikey", "bbef5d657f88957"); // Your SpaceOCR API key
       formData.append("language", "eng");
-      formData.append("scale", "true");
       formData.append("OCREngine", "2");
+      formData.append("scale", "true");
+      formData.append("detectOrientation", "true");
       formData.append("file", fileInput.files[0]);
 
-      fetch("https://api.ocr.space/parse/image", {
-        method: "POST",
-        body: formData
-      })
-      .then(response => response.json())
-      .then(data => {
+      try {
+        const response = await fetch("https://api.ocr.space/parse/image", {
+          method: "POST",
+          body: formData
+        });
+
+        const data = await response.json();
+
         if (data.IsErroredOnProcessing) {
-          status.textContent = "❌ OCR failed. Try a clearer image.";
+          status.textContent = "❌ OCR failed. Please check the image.";
         } else {
-          const extractedText = data.ParsedResults[0].ParsedText;
-          resultArea.value = extractedText;
-          status.textContent = "✅ Text extracted successfully.";
+          const extracted = data.ParsedResults[0].ParsedText;
+          resultArea.value = extracted;
+          status.textContent = "✅ Done!";
         }
-      })
-      .catch(err => {
+      } catch (err) {
         console.error(err);
-        status.textContent = "⚠️ Error communicating with OCR server.";
+        status.textContent = "⚠️ Network or API error.";
+      }
+    }
+
+    function formatText() {
+      const textarea = document.getElementById("result");
+      let text = textarea.value;
+
+      // Replace short forms with full forms
+      const replacements = {
+        "Inc\\.?": "Incorporation",
+        "Ltd\\.?": "Limited",
+        "Ave\\.?": "Avenue",
+        "Ct\\.?": "Court",
+        "Ste\\.?": "Suite",
+        "Pkwy\\.?": "Parkway",
+        "Ln\\.?": "Lane",
+        "Dr\\b": "Drive",
+        "Pl\\.?": "Place",
+        "Blvd\\.?": "Boulevard",
+        "Apt\\.?": "Apartment",
+        "Rd\\.?": "Road",
+        "Pvt\\.?": "Private",
+        "Corp\\.?": "Corporation",
+        "EW\\.?": "East West",
+        "SN\\.?": "South North",
+        "SW\\.?": "South West",
+        "LLC": "Limited Liability Company",
+        "E\\.W\\.S\\.N": "East West South North",
+        "Co\\.,": "Company,"
+      };
+
+      for (const pattern in replacements) {
+        text = text.replace(new RegExp(pattern, "gi"), replacements[pattern]);
+      }
+
+      // Add spacing after commas and full stops
+      text = text.replace(/([^\s]),(?=\S)/g, "$1, ");
+      text = text.replace(/([^\s])\.(?=\S)/g, "$1.  "); // double space after full stop
+
+      // Expiry date formatting (e.g. 7-12-2018)
+      text = text.replace(/(\d{1,2})-(\d{1,2})-(\d{4})/g, function(_, d, m, y) {
+        const suffix = (n) => n.endsWith("1") && !n.endsWith("11") ? "st" : n.endsWith("2") && !n.endsWith("12") ? "nd" : n.endsWith("3") && !n.endsWith("13") ? "rd" : "th";
+        const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+        return `${parseInt(d)}${suffix(d)} ${months[parseInt(m)-1]},  ${y}.`;
       });
+
+      // Mandatory field formatting
+      text = text.replace(/^Domain Name\s*:\s*(.*)$/im, "Domain Name: <U>$1</U>");
+      text = text.replace(/^Administrative Email\s*:\s*(.*)$/im, "Administrative Email: <I><U>$1</U></I>");
+      text = text.replace(/^Registrant Email\s*:\s*(.*)$/im, "Registrant Email: <I><U>$1</U></I>");
+      text = text.replace(/^Billing Email\s*:\s*(.*)$/im, "Billing Email: <I><U>$1</U></I>");
+      text = text.replace(/^Server Name\s*:\s*(.*)$/im, "Server Name: <U>$1</U>");
+      text = text.replace(/^Technical Email\s*:\s*(.*)$/im, "Technical Email: <I><U>$1</U></I>");
+      text = text.replace(/^Domain Status\s*:\s*(.*)$/im, "Domain Status: <R><B>$1</B></R>");
+
+      textarea.value = text;
     }
   </script>
 </body>
