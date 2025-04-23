@@ -83,7 +83,7 @@
       resultArea.value = "";
 
       const formData = new FormData();
-      formData.append("apikey", "bbef5d657f88957"); // Replace with your OCR.Space API key
+      formData.append("apikey", "bbef5d657f88957"); // ✅ Your SpaceOCR key
       formData.append("language", "eng");
       formData.append("OCREngine", "2");
       formData.append("scale", "true");
@@ -101,8 +101,8 @@
         if (data.IsErroredOnProcessing) {
           status.textContent = "❌ OCR failed. Please check the image.";
         } else {
-          const extracted = data.ParsedResults[0].ParsedText;
-          document.getElementById("result").value = extracted;
+          let extracted = data.ParsedResults[0].ParsedText || "";
+          document.getElementById("result").value = extracted.trim();
           status.textContent = "✅ Text extracted successfully.";
         }
       } catch (err) {
@@ -113,12 +113,8 @@
 
     function formatText() {
       const textarea = document.getElementById("result");
-      let text = textarea.value;
+      let lines = textarea.value.trim().split("\n");
 
-      // Remove extra ^ if any
-      text = text.replace(/\^+/g, ' ');
-
-      // Replace short forms
       const replacements = {
         "Inc\\.?": "Incorporation",
         "Ltd\\.?": "Limited",
@@ -142,33 +138,44 @@
         "Co\\.,": "Company,"
       };
 
-      for (const pattern in replacements) {
-        text = text.replace(new RegExp(pattern, "gi"), replacements[pattern]);
+      const applyShortForms = (text) => {
+        for (const pattern in replacements) {
+          text = text.replace(new RegExp(pattern, "gi"), replacements[pattern]);
+        }
+        return text;
+      };
+
+      const formatMandatory = (field, value) => {
+        if (field.includes("Domain Name")) return `${field}: <U>${value}</U>`;
+        if (field.includes("Registrant Email") || field.includes("Administrative Email") || field.includes("Billing Email") || field.includes("Technical Email")) return `${field}: <I><U>${value}</U></I>`;
+        if (field.includes("Domain Status")) return `${field}: <R><B>${value}</B></R>`;
+        return `${field}: ${value}`;
+      };
+
+      const formattedLines = [];
+      for (let i = 0; i < lines.length - 1; i += 2) {
+        const key = lines[i].trim().replace(/\^+/g, '');
+        let val = lines[i + 1].trim().replace(/\^+/g, '');
+
+        val = applyShortForms(val);
+
+        // Add spacing
+        val = val.replace(/,(\S)/g, ', $1');
+        val = val.replace(/\.(\S)/g, '. $1');
+
+        // Format date
+        val = val.replace(/(\d{1,2})-(\d{1,2})-(\d{4})/, (_, d, m, y) => {
+          const suffix = (n) => n.endsWith("1") && !n.endsWith("11") ? "st" :
+                                 n.endsWith("2") && !n.endsWith("12") ? "nd" :
+                                 n.endsWith("3") && !n.endsWith("13") ? "rd" : "th";
+          const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+          return `${parseInt(d)}${suffix(d)} ${months[parseInt(m)-1]}, ${y}.`;
+        });
+
+        formattedLines.push(formatMandatory(key, val));
       }
 
-      // Add spacing after commas and full stops
-      text = text.replace(/,(\S)/g, ', $1');
-      text = text.replace(/\.(\S)/g, '.  $1');
-
-      // Date formatting (e.g., 7-12-2018)
-      text = text.replace(/(\d{1,2})-(\d{1,2})-(\d{4})/g, function(_, d, m, y) {
-        const suffix = (n) => n.endsWith("1") && !n.endsWith("11") ? "st" :
-                               n.endsWith("2") && !n.endsWith("12") ? "nd" :
-                               n.endsWith("3") && !n.endsWith("13") ? "rd" : "th";
-        const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-        return `${parseInt(d)}${suffix(d)} ${months[parseInt(m)-1]}, ${y}.`;
-      });
-
-      // Mandatory field formatting
-      text = text.replace(/^Domain Name\s*:\s*(.*)$/im, "Domain Name: <U>$1</U>");
-      text = text.replace(/^Administrative Email\s*:\s*(.*)$/im, "Administrative Email: <I><U>$1</U></I>");
-      text = text.replace(/^Registrant Email\s*:\s*(.*)$/im, "Registrant Email: <I><U>$1</U></I>");
-      text = text.replace(/^Billing Email\s*:\s*(.*)$/im, "Billing Email: <I><U>$1</U></I>");
-      text = text.replace(/^Server Name\s*:\s*(.*)$/im, "Server Name: <U>$1</U>");
-      text = text.replace(/^Technical Email\s*:\s*(.*)$/im, "Technical Email: <I><U>$1</U></I>");
-      text = text.replace(/^Domain Status\s*:\s*(.*)$/im, "Domain Status: <R><B>$1</B></R>");
-
-      textarea.value = text;
+      textarea.value = formattedLines.join("\n\n");
     }
   </script>
 </body>
