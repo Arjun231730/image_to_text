@@ -1,181 +1,132 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>🧠 SpaceOCR Image Text Extractor</title>
+  <meta charset="UTF-8">
+  <title>🧠 OCR Structured Table Extractor</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      padding: 20px;
-      margin: auto;
-      max-width: 1000px;
-    }
-    #container {
+      margin: 20px;
       display: flex;
       gap: 20px;
+    }
+    .left {
+      width: 50%;
+    }
+    .right {
+      width: 50%;
+      text-align: center;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
       margin-top: 20px;
     }
-    #left, #right {
-      flex: 1;
+    table, td, th {
+      border: 1px solid #aaa;
     }
-    #result {
-      width: 100%;
-      height: 500px;
-      font-size: 15px;
-      white-space: pre-wrap;
+    td {
+      padding: 8px;
     }
-    #preview {
-      width: 100%;
-      max-height: 500px;
-      object-fit: contain;
-      border: 1px solid #ccc;
-    }
-    #status {
-      color: red;
+    .field {
+      font-weight: bold;
+      background: #f0f0f0;
+      width: 40%;
     }
   </style>
 </head>
 <body>
-  <h2>🧠 Upload Image to Extract Text (SpaceOCR)</h2>
 
-  <input type="file" id="imageInput" accept="image/*" onchange="previewImage()" />
-  <button onclick="extractText()">Extract</button>
-  <button onclick="formatText()">Format Text</button>
-  <p id="status"></p>
+  <div class="left">
+    <h2>🧠 Upload Image</h2>
+    <input type="file" id="imageInput" accept="image/*">
+    <button onclick="extractText()">Extract</button>
+    <p id="status" style="color:red;"></p>
+    <div id="outputTable"></div>
+  </div>
 
-  <div id="container">
-    <div id="left">
-      <h3>📝 Extracted Text</h3>
-      <textarea id="result" placeholder="Extracted text will appear here..."></textarea>
-    </div>
-    <div id="right">
-      <h3>📷 Uploaded Image</h3>
-      <img id="preview" src="#" alt="Image Preview" style="display:none;" />
-    </div>
+  <div class="right">
+    <h3>📷 Uploaded Image</h3>
+    <img id="preview" style="max-width:100%; border:1px solid #ccc; padding:10px;" />
   </div>
 
   <script>
-    function previewImage() {
-      const input = document.getElementById("imageInput");
-      const preview = document.getElementById("preview");
+    function formatField(field, value) {
+      field = field.trim();
+      value = value.trim();
 
-      if (input.files && input.files[0]) {
-        const reader = new FileReader();
-        reader.onload = function (e) {
-          preview.src = e.target.result;
-          preview.style.display = "block";
-        };
-        reader.readAsDataURL(input.files[0]);
-      }
+      if (field.match(/^Domain Name/i)) value = `<U>${value}</U>`;
+      if (field.match(/Email/i)) value = `<I><U>${value}</U></I>`;
+      if (field.match(/^Domain Status/i)) value = `<R><B>${value}</B></R>`;
+
+      return { field, value };
     }
 
     async function extractText() {
       const fileInput = document.getElementById("imageInput");
-      const resultArea = document.getElementById("result");
       const status = document.getElementById("status");
+      const preview = document.getElementById("preview");
+      const outputTable = document.getElementById("outputTable");
+
+      outputTable.innerHTML = "";
+      status.textContent = "";
 
       if (!fileInput.files.length) {
-        status.textContent = "❗ Please select an image first.";
+        status.textContent = "❗ Please select an image.";
         return;
       }
 
-      status.textContent = "⏳ Processing...";
-      resultArea.value = "";
+      const file = fileInput.files[0];
+      preview.src = URL.createObjectURL(file);
 
       const formData = new FormData();
-      formData.append("apikey", "bbef5d657f88957"); // ✅ Your SpaceOCR key
+      formData.append("apikey", "bbef5d657f88957"); // Replace with your own API key
       formData.append("language", "eng");
       formData.append("OCREngine", "2");
       formData.append("scale", "true");
-      formData.append("detectOrientation", "true");
-      formData.append("file", fileInput.files[0]);
+      formData.append("file", file);
 
+      status.textContent = "⏳ Extracting text...";
       try {
         const response = await fetch("https://api.ocr.space/parse/image", {
           method: "POST",
           body: formData
         });
-
         const data = await response.json();
 
         if (data.IsErroredOnProcessing) {
-          status.textContent = "❌ OCR failed. Please check the image.";
-        } else {
-          let extracted = data.ParsedResults[0].ParsedText || "";
-          document.getElementById("result").value = extracted.trim();
-          status.textContent = "✅ Text extracted successfully.";
+          status.textContent = "❌ OCR failed.";
+          return;
         }
+
+        const lines = data.ParsedResults[0].ParsedText.split("\n").map(line => line.trim()).filter(Boolean);
+        const table = document.createElement("table");
+
+        for (let i = 0; i < lines.length - 1; i += 2) {
+          const row = document.createElement("tr");
+
+          let field = lines[i];
+          let value = lines[i + 1];
+          const formatted = formatField(field, value);
+
+          const td1 = document.createElement("td");
+          td1.innerHTML = formatted.field;
+          td1.className = "field";
+
+          const td2 = document.createElement("td");
+          td2.innerHTML = formatted.value;
+
+          row.appendChild(td1);
+          row.appendChild(td2);
+          table.appendChild(row);
+        }
+
+        outputTable.appendChild(table);
+        status.textContent = "✅ Text extracted!";
       } catch (err) {
+        status.textContent = "⚠️ Error during OCR process.";
         console.error(err);
-        status.textContent = "⚠️ Network or API error.";
       }
-    }
-
-    function formatText() {
-      const textarea = document.getElementById("result");
-      let lines = textarea.value.trim().split("\n");
-
-      const replacements = {
-        "Inc\\.?": "Incorporation",
-        "Ltd\\.?": "Limited",
-        "Ave\\.?": "Avenue",
-        "Ct\\.?": "Court",
-        "Ste\\.?": "Suite",
-        "Pkwy\\.?": "Parkway",
-        "Ln\\.?": "Lane",
-        "Dr\\b": "Drive",
-        "Pl\\.?": "Place",
-        "Blvd\\.?": "Boulevard",
-        "Apt\\.?": "Apartment",
-        "Rd\\.?": "Road",
-        "Pvt\\.?": "Private",
-        "Corp\\.?": "Corporation",
-        "EW\\.?": "East West",
-        "SN\\.?": "South North",
-        "SW\\.?": "South West",
-        "LLC": "Limited Liability Company",
-        "E\\.W\\.S\\.N": "East West South North",
-        "Co\\.,": "Company,"
-      };
-
-      const applyShortForms = (text) => {
-        for (const pattern in replacements) {
-          text = text.replace(new RegExp(pattern, "gi"), replacements[pattern]);
-        }
-        return text;
-      };
-
-      const formatMandatory = (field, value) => {
-        if (field.includes("Domain Name")) return `${field}: <U>${value}</U>`;
-        if (field.includes("Registrant Email") || field.includes("Administrative Email") || field.includes("Billing Email") || field.includes("Technical Email")) return `${field}: <I><U>${value}</U></I>`;
-        if (field.includes("Domain Status")) return `${field}: <R><B>${value}</B></R>`;
-        return `${field}: ${value}`;
-      };
-
-      const formattedLines = [];
-      for (let i = 0; i < lines.length - 1; i += 2) {
-        const key = lines[i].trim().replace(/\^+/g, '');
-        let val = lines[i + 1].trim().replace(/\^+/g, '');
-
-        val = applyShortForms(val);
-
-        // Add spacing
-        val = val.replace(/,(\S)/g, ', $1');
-        val = val.replace(/\.(\S)/g, '. $1');
-
-        // Format date
-        val = val.replace(/(\d{1,2})-(\d{1,2})-(\d{4})/, (_, d, m, y) => {
-          const suffix = (n) => n.endsWith("1") && !n.endsWith("11") ? "st" :
-                                 n.endsWith("2") && !n.endsWith("12") ? "nd" :
-                                 n.endsWith("3") && !n.endsWith("13") ? "rd" : "th";
-          const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-          return `${parseInt(d)}${suffix(d)} ${months[parseInt(m)-1]}, ${y}.`;
-        });
-
-        formattedLines.push(formatMandatory(key, val));
-      }
-
-      textarea.value = formattedLines.join("\n\n");
     }
   </script>
 </body>
