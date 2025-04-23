@@ -10,9 +10,6 @@
       margin: auto;
       max-width: 1000px;
     }
-    h2 {
-      margin-bottom: 10px;
-    }
     #container {
       display: flex;
       gap: 20px;
@@ -86,7 +83,7 @@
       resultArea.value = "";
 
       const formData = new FormData();
-      formData.append("apikey", "bbef5d657f88957"); // Your SpaceOCR API key
+      formData.append("apikey", "bbef5d657f88957"); // Replace with your OCR.Space API key
       formData.append("language", "eng");
       formData.append("OCREngine", "2");
       formData.append("scale", "true");
@@ -105,8 +102,8 @@
           status.textContent = "❌ OCR failed. Please check the image.";
         } else {
           const extracted = data.ParsedResults[0].ParsedText;
-          resultArea.value = extracted;
-          status.textContent = "✅ Done!";
+          document.getElementById("result").value = extracted;
+          status.textContent = "✅ Text extracted successfully.";
         }
       } catch (err) {
         console.error(err);
@@ -118,7 +115,10 @@
       const textarea = document.getElementById("result");
       let text = textarea.value;
 
-      // Replace short forms with full forms
+      // Remove extra ^ if any
+      text = text.replace(/\^+/g, ' ');
+
+      // Replace short forms
       const replacements = {
         "Inc\\.?": "Incorporation",
         "Ltd\\.?": "Limited",
@@ -147,14 +147,16 @@
       }
 
       // Add spacing after commas and full stops
-      text = text.replace(/([^\s]),(?=\S)/g, "$1, ");
-      text = text.replace(/([^\s])\.(?=\S)/g, "$1.  "); // double space after full stop
+      text = text.replace(/,(\S)/g, ', $1');
+      text = text.replace(/\.(\S)/g, '.  $1');
 
-      // Expiry date formatting (e.g. 7-12-2018)
+      // Date formatting (e.g., 7-12-2018)
       text = text.replace(/(\d{1,2})-(\d{1,2})-(\d{4})/g, function(_, d, m, y) {
-        const suffix = (n) => n.endsWith("1") && !n.endsWith("11") ? "st" : n.endsWith("2") && !n.endsWith("12") ? "nd" : n.endsWith("3") && !n.endsWith("13") ? "rd" : "th";
+        const suffix = (n) => n.endsWith("1") && !n.endsWith("11") ? "st" :
+                               n.endsWith("2") && !n.endsWith("12") ? "nd" :
+                               n.endsWith("3") && !n.endsWith("13") ? "rd" : "th";
         const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-        return `${parseInt(d)}${suffix(d)} ${months[parseInt(m)-1]},  ${y}.`;
+        return `${parseInt(d)}${suffix(d)} ${months[parseInt(m)-1]}, ${y}.`;
       });
 
       // Mandatory field formatting
@@ -171,4 +173,3 @@
   </script>
 </body>
 </html>
-
