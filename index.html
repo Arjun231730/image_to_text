@@ -2,132 +2,105 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>🧠 OCR Structured Table Extractor</title>
+  <title>🧠 SpaceOCR Extractor</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      margin: 20px;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
       display: flex;
-      gap: 20px;
+      gap: 30px;
     }
-    .left {
-      width: 50%;
+    .left, .right {
+      flex: 1;
     }
-    .right {
-      width: 50%;
-      text-align: center;
-    }
-    table {
+    textarea {
       width: 100%;
-      border-collapse: collapse;
-      margin-top: 20px;
+      height: 500px;
+      font-size: 16px;
+      white-space: pre-wrap;
+      padding: 10px;
     }
-    table, td, th {
-      border: 1px solid #aaa;
+    img {
+      max-width: 100%;
+      border: 1px solid #ccc;
     }
-    td {
-      padding: 8px;
-    }
-    .field {
-      font-weight: bold;
-      background: #f0f0f0;
-      width: 40%;
+    #status {
+      color: red;
+      margin-top: 10px;
     }
   </style>
 </head>
 <body>
 
-  <div class="left">
-    <h2>🧠 Upload Image</h2>
-    <input type="file" id="imageInput" accept="image/*">
-    <button onclick="extractText()">Extract</button>
-    <p id="status" style="color:red;"></p>
-    <div id="outputTable"></div>
-  </div>
+  <h2>🧠 Upload Image to Extract Text (via SpaceOCR)</h2>
+  <input type="file" id="imageInput" accept="image/*">
+  <button onclick="extractText()">Extract Text</button>
+  <div id="status"></div>
 
-  <div class="right">
-    <h3>📷 Uploaded Image</h3>
-    <img id="preview" style="max-width:100%; border:1px solid #ccc; padding:10px;" />
+  <div class="container">
+    <!-- Left: Extracted Text -->
+    <div class="left">
+      <h3>📄 Extracted Text</h3>
+      <textarea id="result" placeholder="Extracted text will appear here..."></textarea>
+    </div>
+
+    <!-- Right: Uploaded Image -->
+    <div class="right">
+      <h3>🖼️ Uploaded Image</h3>
+      <img id="uploadedImage" src="" alt="Preview will appear here">
+    </div>
   </div>
 
   <script>
-    function formatField(field, value) {
-      field = field.trim();
-      value = value.trim();
-
-      if (field.match(/^Domain Name/i)) value = `<U>${value}</U>`;
-      if (field.match(/Email/i)) value = `<I><U>${value}</U></I>`;
-      if (field.match(/^Domain Status/i)) value = `<R><B>${value}</B></R>`;
-
-      return { field, value };
-    }
-
     async function extractText() {
       const fileInput = document.getElementById("imageInput");
+      const resultArea = document.getElementById("result");
+      const uploadedImage = document.getElementById("uploadedImage");
       const status = document.getElementById("status");
-      const preview = document.getElementById("preview");
-      const outputTable = document.getElementById("outputTable");
-
-      outputTable.innerHTML = "";
-      status.textContent = "";
 
       if (!fileInput.files.length) {
-        status.textContent = "❗ Please select an image.";
+        status.textContent = "❗ Please select an image first.";
         return;
       }
 
       const file = fileInput.files[0];
-      preview.src = URL.createObjectURL(file);
+      const imageUrl = URL.createObjectURL(file);
+      uploadedImage.src = imageUrl;
+
+      resultArea.value = "";
+      status.textContent = "⏳ Processing...";
 
       const formData = new FormData();
-      formData.append("apikey", "bbef5d657f88957"); // Replace with your own API key
+      formData.append("apikey", "bbef5d657f88957"); // Your OCR.Space API key
       formData.append("language", "eng");
       formData.append("OCREngine", "2");
       formData.append("scale", "true");
       formData.append("file", file);
 
-      status.textContent = "⏳ Extracting text...";
       try {
         const response = await fetch("https://api.ocr.space/parse/image", {
           method: "POST",
           body: formData
         });
+
         const data = await response.json();
 
         if (data.IsErroredOnProcessing) {
-          status.textContent = "❌ OCR failed.";
-          return;
+          status.textContent = "❌ OCR failed. Please try another image.";
+        } else {
+          const extracted = data.ParsedResults[0].ParsedText;
+          resultArea.value = extracted;
+          status.textContent = "✅ Text extracted successfully!";
         }
-
-        const lines = data.ParsedResults[0].ParsedText.split("\n").map(line => line.trim()).filter(Boolean);
-        const table = document.createElement("table");
-
-        for (let i = 0; i < lines.length - 1; i += 2) {
-          const row = document.createElement("tr");
-
-          let field = lines[i];
-          let value = lines[i + 1];
-          const formatted = formatField(field, value);
-
-          const td1 = document.createElement("td");
-          td1.innerHTML = formatted.field;
-          td1.className = "field";
-
-          const td2 = document.createElement("td");
-          td2.innerHTML = formatted.value;
-
-          row.appendChild(td1);
-          row.appendChild(td2);
-          table.appendChild(row);
-        }
-
-        outputTable.appendChild(table);
-        status.textContent = "✅ Text extracted!";
       } catch (err) {
-        status.textContent = "⚠️ Error during OCR process.";
+        status.textContent = "⚠️ Network error.";
         console.error(err);
       }
     }
   </script>
+
 </body>
 </html>
