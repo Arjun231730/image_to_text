@@ -86,7 +86,7 @@
       resultArea.value = "";
 
       const formData = new FormData();
-      formData.append("apikey", "bbef5d657f88957"); // Your SpaceOCR API key
+      formData.append("apikey", "bbef5d657f88957"); 
       formData.append("language", "eng");
       formData.append("OCREngine", "2");
       formData.append("scale", "true");
@@ -123,18 +123,16 @@
         return;
       }
 
-      // 📜 Start formatting according to the uploaded rules
-
-      // 1. No space before/after hyphen (-)
+      // 1. Remove spaces before and after hyphens
       text = text.replace(/\s*-\s*/g, "-");
 
-      // 2. After full stop (.), use double normal space
-      text = text.replace(/\.([^\s])/g, ".  $1"); // Add 2 spaces after dot
+      // 2. Double space after full stop (not at end)
+      text = text.replace(/\.([^\s])/g, ".  $1");
 
-      // 3. After comma (,) put single normal space
-      text = text.replace(/,(?=[^\s])/g, ", "); // Add 1 space after comma if missing
+      // 3. Single space after comma
+      text = text.replace(/,(?=[^\s])/g, ", ");
 
-      // 4. Full forms (short forms replacement)
+      // 4. Replace short forms
       const shortForms = {
         "Inc.": "Incorporation",
         "Ltd.": "Limited",
@@ -158,13 +156,12 @@
         "E. W. S. N": "East West South North",
         "Co.,": "Company,"
       };
-
       for (const [key, value] of Object.entries(shortForms)) {
         const regex = new RegExp(key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), "g");
         text = text.replace(regex, value);
       }
 
-      // 5. Specific short form corrections
+      // 5. Extra replacements from short form rules
       text = text.replace(/\bltd\b/gi, "limited");
       text = text.replace(/\bltd\.\b/gi, "limited.");
       text = text.replace(/\bltd,\b/gi, "limited,");
@@ -173,8 +170,12 @@
       text = text.replace(/\bE,\b/g, "East,");
       text = text.replace(/\bE\.\.\b/g, "East.");
 
-      // 6. Clean up any extra spaces (if any)
-      text = text.replace(/\s{3,}/g, "  "); // If more than 2 spaces, keep it 2 spaces
+      // 6. Format dates (7-12-2018 -> 7th December, 2018)
+      text = text.replace(/\b(\d{1,2})-(\d{1,2})-(\d{4})\b/g, (match, d, m, y) => {
+        const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+        const daySuffix = d.endsWith("1") && d !== "11" ? "st" : d.endsWith("2") && d !== "12" ? "nd" : d.endsWith("3") && d !== "13" ? "rd" : "th";
+        return `${d}${daySuffix} ${months[parseInt(m) - 1]}, ${y}`;
+      });
 
       // 🎯 Final output
       resultArea.value = text;
@@ -182,4 +183,3 @@
   </script>
 </body>
 </html>
-
