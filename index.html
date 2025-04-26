@@ -1,50 +1,80 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>🧠 SpaceOCR Text Extractor</title>
+  <meta charset="UTF-8" />
+  <title>🧠 SpaceOCR Image Text Extractor</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; display: flex; justify-content: space-between; }
-    #output-container {
-      width: 48%;
-      padding: 10px;
-      border: 1px solid #ccc;
-      background-color: #f9f9f9;
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      margin: auto;
+      max-width: 1000px;
     }
-    #image-container {
-      width: 48%;
-      padding: 10px;
-      text-align: center;
+    h2 {
+      margin-bottom: 10px;
     }
-    #image-container img {
-      max-width: 100%;
+    #container {
+      display: flex;
+      gap: 20px;
+      margin-top: 20px;
+    }
+    #left, #right {
+      flex: 1;
+    }
+    #result {
+      width: 100%;
+      height: 500px;
+      font-size: 15px;
+      white-space: pre-wrap;
+    }
+    #preview {
+      width: 100%;
       max-height: 500px;
+      object-fit: contain;
       border: 1px solid #ccc;
     }
-    textarea { width: 100%; height: 400px; margin-top: 20px; font-size: 16px; }
-    button { margin-top: 10px; }
+    #status {
+      color: red;
+    }
   </style>
 </head>
 <body>
-  <div id="output-container">
-    <h2>🧠 Upload Image to Extract Text (via SpaceOCR)</h2>
-    <input type="file" id="imageInput" accept="image/*">
-    <button onclick="extractText()">Extract Text</button>
-    <p id="status" style="color:red;"></p>
-    <textarea id="result" placeholder="Extracted text will appear here..."></textarea>
-  </div>
+  <h2>🧠 Upload Image to Extract Text (SpaceOCR)</h2>
 
-  <div id="image-container">
-    <h2>Uploaded Image</h2>
-    <img id="uploadedImage" src="" alt="Uploaded Image">
+  <input type="file" id="imageInput" accept="image/*" onchange="previewImage()" />
+  <button onclick="extractText()">Extract</button>
+  <p id="status"></p>
+
+  <div id="container">
+    <div id="left">
+      <h3>📝 Extracted Text</h3>
+      <textarea id="result" placeholder="Extracted text will appear here..."></textarea>
+    </div>
+    <div id="right">
+      <h3>📷 Uploaded Image</h3>
+      <img id="preview" src="#" alt="Image Preview" style="display:none;" />
+    </div>
   </div>
 
   <script>
+    function previewImage() {
+      const input = document.getElementById("imageInput");
+      const preview = document.getElementById("preview");
+
+      if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          preview.src = e.target.result;
+          preview.style.display = "block";
+        };
+        reader.readAsDataURL(input.files[0]);
+      }
+    }
+
     async function extractText() {
       const fileInput = document.getElementById("imageInput");
       const resultArea = document.getElementById("result");
       const status = document.getElementById("status");
-      const imageContainer = document.getElementById("uploadedImage");
 
       if (!fileInput.files.length) {
         status.textContent = "❗ Please select an image first.";
@@ -55,16 +85,12 @@
       resultArea.value = "";
 
       const formData = new FormData();
-      formData.append("apikey", "bbef5d657f88957"); // Replace with your own SpaceOCR key
+      formData.append("apikey", "bbef5d657f88957"); // Your SpaceOCR API key
       formData.append("language", "eng");
-      formData.append("isOverlayRequired", "false");
       formData.append("OCREngine", "2");
+      formData.append("scale", "true");
+      formData.append("detectOrientation", "true");
       formData.append("file", fileInput.files[0]);
-
-      // Display the uploaded image on the right side
-      const file = fileInput.files[0];
-      const imageUrl = URL.createObjectURL(file);
-      imageContainer.src = imageUrl;
 
       try {
         const response = await fetch("https://api.ocr.space/parse/image", {
@@ -75,26 +101,15 @@
         const data = await response.json();
 
         if (data.IsErroredOnProcessing) {
-          status.textContent = "❌ OCR failed. Please check the image or try again.";
+          status.textContent = "❌ OCR failed. Please check the image.";
         } else {
-          let extracted = data.ParsedResults[0].ParsedText;
-
-          // Apply the formatting rules
-          extracted = extracted.replace(/^Domain Name\s*:\s*(.*)$/im, "Domain Name: <U>$1</U>");
-          extracted = extracted.replace(/^.Email\s:\s*(.*)$/gim, (match, p1) => {
-            return match.replace(p1, <I><U>${p1}</U></I>);
-          });
-          extracted = extracted.replace(/^Domain Status\s*:\s*(.*)$/im, "Domain Status: <R><B>$1</B></R>");
-
-          // Remove the column names
-          extracted = extracted.replace(/(Domain Name|Expiry \/ Date|Domain Registrar Name|Domain Registrar URL|Registrant Name|Registrant Company|Registrant Address|Registrant Email|Registrant Phone|Administrative Name|Administrative Company|Administrative Address|Administrative Email|Administrative Phone|Technical Name|Technical Company|Technical Address|Technical Email|Technical Phone|Billing Name|Billing Company|Billing Email|Billing Phone|Server Name|Domain Status|.)\s:/g, '');
-
+          const extracted = data.ParsedResults[0].ParsedText;
           resultArea.value = extracted;
-          status.textContent = "✅ Text extracted successfully!";
+          status.textContent = "✅ Done!";
         }
       } catch (err) {
         console.error(err);
-        status.textContent = "⚠️ Network or server error.";
+        status.textContent = "⚠️ Network or API error.";
       }
     }
   </script>
