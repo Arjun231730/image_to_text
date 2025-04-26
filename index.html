@@ -43,6 +43,7 @@
 
   <input type="file" id="imageInput" accept="image/*" onchange="previewImage()" />
   <button onclick="extractText()">Extract</button>
+  <button onclick="formatText()">Format</button>
   <p id="status"></p>
 
   <div id="container">
@@ -112,6 +113,73 @@
         status.textContent = "⚠️ Network or API error.";
       }
     }
+
+    function formatText() {
+      const resultArea = document.getElementById("result");
+      let text = resultArea.value;
+
+      if (!text.trim()) {
+        alert("❗ Please extract text first.");
+        return;
+      }
+
+      // 📜 Start formatting according to the uploaded rules
+
+      // 1. No space before/after hyphen (-)
+      text = text.replace(/\s*-\s*/g, "-");
+
+      // 2. After full stop (.), use double normal space
+      text = text.replace(/\.([^\s])/g, ".  $1"); // Add 2 spaces after dot
+
+      // 3. After comma (,) put single normal space
+      text = text.replace(/,(?=[^\s])/g, ", "); // Add 1 space after comma if missing
+
+      // 4. Full forms (short forms replacement)
+      const shortForms = {
+        "Inc.": "Incorporation",
+        "Ltd.": "Limited",
+        "Ave.": "Avenue",
+        "Ct.": "Court",
+        "Ste.": "Suite",
+        "Pkwy.": "Parkway",
+        "Ln.": "Lane",
+        "Dr.": "Drive",
+        "Dr,": "Drive,",
+        "Pl.": "Place",
+        "Blvd.": "Boulevard",
+        "Apt.": "Apartment",
+        "Rd.": "Road",
+        "Pvt.": "Private",
+        "Corp.": "Corporation",
+        "EW.": "East West",
+        "SN.": "South North",
+        "SW.": "South West",
+        "LLC": "Limited Liability Company",
+        "E. W. S. N": "East West South North",
+        "Co.,": "Company,"
+      };
+
+      for (const [key, value] of Object.entries(shortForms)) {
+        const regex = new RegExp(key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), "g");
+        text = text.replace(regex, value);
+      }
+
+      // 5. Specific short form corrections
+      text = text.replace(/\bltd\b/gi, "limited");
+      text = text.replace(/\bltd\.\b/gi, "limited.");
+      text = text.replace(/\bltd,\b/gi, "limited,");
+
+      text = text.replace(/\bE\.\b/g, "East");
+      text = text.replace(/\bE,\b/g, "East,");
+      text = text.replace(/\bE\.\.\b/g, "East.");
+
+      // 6. Clean up any extra spaces (if any)
+      text = text.replace(/\s{3,}/g, "  "); // If more than 2 spaces, keep it 2 spaces
+
+      // 🎯 Final output
+      resultArea.value = text;
+    }
   </script>
 </body>
 </html>
+
