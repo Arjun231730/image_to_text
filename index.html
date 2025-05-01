@@ -85,32 +85,44 @@
       status.textContent = "⏳ Processing...";
       resultArea.value = "";
 
-      const formData = new FormData();
-      formData.append("apikey", "bbef5d657f88957"); 
-      formData.append("language", "eng");
-      formData.append("OCREngine", "2");
-      formData.append("scale", "true");
-      formData.append("detectOrientation", "true");
-      formData.append("file", fileInput.files[0]);
+      const apiKeys = ["bbef5d657f88957", "K84345754188957"]; // Two API keys
 
-      try {
-        const response = await fetch("https://api.ocr.space/parse/image", {
-          method: "POST",
-          body: formData
-        });
+      let success = false;
 
-        const data = await response.json();
+      for (const key of apiKeys) {
+        const formData = new FormData();
+        formData.append("apikey", key);
+        formData.append("language", "eng");
+        formData.append("OCREngine", "2");
+        formData.append("scale", "true");
+        formData.append("detectOrientation", "true");
+        formData.append("file", fileInput.files[0]);
 
-        if (data.IsErroredOnProcessing) {
-          status.textContent = "❌ OCR failed. Please check the image.";
-        } else {
-          const extracted = data.ParsedResults[0].ParsedText;
-          resultArea.value = extracted;
-          status.textContent = "✅ Done!";
+        try {
+          const response = await fetch("https://api.ocr.space/parse/image", {
+            method: "POST",
+            body: formData
+          });
+
+          const data = await response.json();
+
+          if (data.IsErroredOnProcessing) {
+            console.warn(`API key ${key} failed: ${data.ErrorMessage || "Unknown error"}`);
+            continue; // Try the next API key
+          } else {
+            const extracted = data.ParsedResults[0].ParsedText;
+            resultArea.value = extracted;
+            status.textContent = "✅ Done!";
+            success = true;
+            break;
+          }
+        } catch (err) {
+          console.error(`Error with API key ${key}:`, err);
         }
-      } catch (err) {
-        console.error(err);
-        status.textContent = "⚠️ Network or API error.";
+      }
+
+      if (!success) {
+        status.textContent = "❌ All API keys failed. Please try again later.";
       }
     }
 
